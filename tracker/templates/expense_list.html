@@ -2,57 +2,76 @@
 {% block content %}
   <h2>Dashboard</h2>
 
-  {# — PROFILE FORM — unchanged — #}
-  <form method="post" class="mb-4">
-    {% csrf_token %}
-    {{ profile_form.prof.as_p }}
-    <button class="btn btn-primary">Save Profile</button>
-  </form>
+  {# ------------- Current profile summary ------------- #}
+  <div class="card p-3 mb-4">
+    <p><strong>Salary:</strong> {{ user.salary }}</p>
+    <p><strong>Spending Goal:</strong> {{ user.spending_goal }}</p>
+    <p><strong>Alert Threshold:</strong> {{ user.alert_threshold }}</p>
+    <a href="{% url 'edit_profile' %}" class="btn btn-sm btn-outline-primary">
+      Edit Profile
+    </a>
+  </div>
 
   {% if over_all_alert %}
     <div class="alert alert-warning">
-       You’ve spent {{ total }} this month, exceeding your overall threshold.
+      ⚠️ Total spending {{ total }} exceeds your alert threshold!
     </div>
   {% endif %}
 
-  {# — PER-CATEGORY STATUS — #}
-  <h4>Category Goals</h4>
-  <table class="table table-sm mb-4">
-    <thead><tr><th>Category</th><th>Goal</th><th>Spent</th><th>Alert?</th></tr></thead>
+  {# ------------- Category goals table ------------- #}
+  <h4>Category Goals (this month)</h4>
+  <table class="table table-sm">
+    <thead>
+      <tr><th>Category</th><th>Goal</th><th>Spent</th><th></th></tr>
+    </thead>
     <tbody>
-      {% for c in cat_status %}
-      <tr class="{% if c.alert %}table-danger{% endif %}">
-        <td>{{ c.name }}</td>
-        <td>{{ c.goal }}</td>
-        <td>{{ c.spent }}</td>
-        <td>{% if c.alert %}{% endif %}</td>
-      </tr>
+      {% for row in category_status %}
+        <tr class="{% if row.alert %}table-danger{% endif %}">
+          <td>{{ row.obj.category }}</td>
+          <td>
+            {% if row.editing %}
+              <form method="post" action="?edit_goal={{ row.obj.id }}">
+                {% csrf_token %}
+                {{ goal_form.goal }}
+                <button class="btn btn-sm btn-success">Save</button>
+              </form>
+            {% else %}
+              {{ row.goal }}
+            {% endif %}
+          </td>
+          <td>{{ row.spent }}</td>
+          <td>
+            {% if not row.editing %}
+              <a href="?edit_goal={{ row.obj.id }}" class="btn btn-sm btn-outline-secondary">
+                Edit Goal
+              </a>
+            {% endif %}
+          </td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  {# — BUTTONS to go to the separate add-views — #}
+  {# ------------- Action buttons ------------- #}
   <div class="mb-4">
-    <a href="{% url 'add_category' %}" class="btn btn-secondary">
-      + Add Category
-    </a>
-    <a href="{% url 'add_expense' %}" class="btn btn-success">
-      + Add Expense
-    </a>
+    <a href="{% url 'add_category' %}" class="btn btn-secondary">+ Add Category</a>
+    <a href="{% url 'add_expense'  %}" class="btn btn-success">+ Add Expense</a>
   </div>
 
-  {# — FULL EXPENSE LIST — #}
+  {# ------------- Full expense list ------------- #}
   <h4>All Expenses</h4>
   <table class="table">
-    <thead><tr><th>Amount</th><th>Category</th><th>Description</th><th>Date</th></tr></thead>
+    <thead>
+      <tr><th>Amount</th><th>Category</th><th>Description</th><th>Date</th></tr>
+    </thead>
     <tbody>
       {% for e in expenses %}
-      <tr>
-        <td>{{ e.amount }}</td>
-        <td>{{ e.category.category }}</td>
-        <td>{{ e.description }}</td>
-        <td>{{ e.date|date:"d-m-Y" }}</td>
-      </tr>
+        <tr>
+          <td>{{ e.amount }}</td>
+          <td>{{ e.category.category }}</td>
+          <td>{{ e.description }}</td>
+          <td>{{ e.date|date:"d-m-Y" }}</td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>

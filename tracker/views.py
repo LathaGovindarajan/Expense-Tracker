@@ -3,7 +3,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 
-from .forms  import ProfileForm, CategoryForm, ExpenseForm,SignUpForm,LoginForm
+from .forms  import ProfileForm, CategoryForm, ExpenseForm,SignUpForm,LoginForm,CategoryGoalForm
 from .models import User, Expense, Category
 import datetime
 
@@ -42,69 +42,83 @@ def login_view(request):
         form = LoginForm()
     return render(request, 'login.html', {'form': form})
 
+def logout_view(request):
+    request.session.flush()
+    return redirect('login')
+
 
 # tracker/views.py
-
-def expense_list(request):
+def edit_profile(request):
     if 'username' not in request.session:
         return redirect('login')
-
     user = User.objects(username=request.session['username']).first()
-    if not user:
-        messages.error(request, "Please log in again.")
-        return redirect('login')
 
-    # 1) PROFILE form (salary/alerts)
-    if request.method=='POST' and 'salary' in request.POST:
-        prof = ProfileForm(request.POST, prefix="prof")
-        if prof.is_valid():
-            user.salary          = prof.cleaned_data['salary']
-            user.spending_goal   = prof.cleaned_data['spending_goal']
-            user.alert_threshold = prof.cleaned_data['alert_threshold']
+    if request.method == 'POST':
+        form = ProfileForm(request.POST)
+        if form.is_valid():
+            user.salary          = form.cleaned_data['salary']
+            user.spending_goal   = form.cleaned_data['spending_goal']
+            user.alert_threshold = form.cleaned_data['alert_threshold']
             user.save()
             return redirect('expense_list')
     else:
-        prof = ProfileForm(prefix="prof", initial={
+        form = ProfileForm(initial={
             'salary':          user.salary,
             'spending_goal':   user.spending_goal,
             'alert_threshold': user.alert_threshold,
         })
+    return render(request, 'profile_settings.html', {'form': form})
 
-    # 2) EXPENSES and TOTAL
+# ---------- dashboard ----------
+def expense_list(request):
+    if 'username' not in request.session:
+        return redirect('login')
+    user = User.objects(username=request.session['username']).first()
+
+    # ---- per-category goal update ----
+    editing_category_id = request.GET.get('edit_goal')
+    if request.method == 'POST' and editing_category_id:
+        goal_form = CategoryGoalForm(request.POST)
+        if goal_form.is_valid():
+            category_obj = Category.objects(id=editing_category_id).first()
+            if category_obj:
+                category_obj.goal = goal_form.cleaned_data['goal']
+                category_obj.save()
+            return redirect('expense_list')
+    else:
+        goal_form = CategoryGoalForm()  # blank; will be re-instantiated row-wise
+
+    # ---- compute category status ----
     expenses = Expense.objects(user=user)
     total    = sum(e.amount for e in expenses)
-    over_all_alert = (user.alert_threshold > 0 and total > user.alert_threshold)
 
-    # 3) PER‐CATEGORY SPENDING vs GOAL (this month)
-    now       = datetime.datetime.utcnow()
-    this_month = now.month
-    cat_status = []
-    for cat in Category.objects:
+    category_status = []
+    now_month = datetime.datetime.utcnow().month
+
+    for category in Category.objects:
         spent = sum(
-            e.amount
-            for e in expenses
-            if e.category.id == cat.id and e.date.month == this_month
+            e.amount for e in expenses
+            if e.category.id == category.id and e.date.month == now_month
         )
-        cat_status.append({
-            'name':  cat.category,
-            'goal':  cat.goal,
+        category_status.append({
+            'obj':   category,
+            'goal':  category.goal,
             'spent': spent,
-            'alert': (cat.goal > 0 and spent > cat.goal),
+            'alert': category.goal and spent > category.goal,
+            'editing': editing_category_id == str(category.id),
         })
 
-    # 3) Prepare the inline forms
-    cat_form = CategoryForm()
-    exp_form = ExpenseForm()
+    over_all_alert = user.alert_threshold and total > user.alert_threshold
 
     return render(request, 'expense_list.html', {
-        'profile_form': prof,
-        'over_all_alert': over_all_alert,
-        'total': total,
-        'cat_status': cat_status,
-        'expenses': expenses,
-        'cat_form': cat_form,
-        'exp_form': exp_form,
+        'user':            user,
+        'expenses':        expenses,
+        'total':           total,
+        'over_all_alert':  over_all_alert,
+        'category_status': category_status,
+        'goal_form':       goal_form,
     })
+
 
 def add_category(request):
     if 'username' not in request.session:
@@ -144,6 +158,3 @@ def add_expense(request):
     return render(request, 'add_expense.html', {'form': form})
 
 
-def logout_view(request):
-    request.session.flush()
-    return redirect('login')

@@ -3,12 +3,10 @@ from mongoengine import Document, StringField, FloatField, DateTimeField, Refere
 import datetime
 
 class Category(Document):
-    category     = StringField(required=True, unique=True)
-    description  = StringField(required=True)
-    goal         = FloatField(default=0.0)               # ← your per-category goal
-    date_created = DateTimeField(default=datetime.datetime.utcnow)
-    amount       = FloatField(default=0.0)
-    date         = DateTimeField(default=datetime.datetime.utcnow)
+    category      = StringField(required=True, unique=True)   # name
+    description   = StringField()
+    goal          = FloatField(default=0.0)                   # monthly goal
+    date_created  = DateTimeField(default=datetime.datetime.utcnow)
 
 class User(Document):
     username        = StringField(required=True, unique=True)

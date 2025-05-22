@@ -9,7 +9,7 @@ class Category(Document):
     date_created  = DateTimeField(default=datetime.datetime.utcnow)
 
     meta = {
-        'collection': 'categories',
+        'collection': 'category',
         'ordering': ['category']   # default ordering by category name
     }
 
@@ -21,7 +21,7 @@ class User(Document):
     alert_threshold = FloatField(default=0.0)
 
     meta = {
-        'collection': 'users',
+        'collection': 'user',
         'ordering': ['username']   # default ordering by username
     }
 

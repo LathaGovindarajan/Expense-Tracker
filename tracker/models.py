@@ -8,6 +8,11 @@ class Category(Document):
     goal          = FloatField(default=0.0)                   # monthly goal
     date_created  = DateTimeField(default=datetime.datetime.utcnow)
 
+    meta = {
+        'collection': 'categories',
+        'ordering': ['category']   # default ordering by category name
+    }
+
 class User(Document):
     username        = StringField(required=True, unique=True)
     password        = StringField(required=True)
@@ -15,9 +20,19 @@ class User(Document):
     spending_goal   = FloatField(default=0.0)
     alert_threshold = FloatField(default=0.0)
 
+    meta = {
+        'collection': 'users',
+        'ordering': ['username']   # default ordering by username
+    }
+
 class Expense(Document):
     user        = ReferenceField(User, required=True)
     category    = ReferenceField(Category, required=True)
     amount      = FloatField(required=True)
     description = StringField()
     date        = DateTimeField(default=datetime.datetime.utcnow)
+
+    meta = {
+        'collection': 'expenses',
+        'ordering': ['-date']    # default ordering: newest first
+    }
